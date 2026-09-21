@@ -61,7 +61,7 @@
                 <div class="flex items-center">
                         <button id="cartBtn" class="relative p-2 text-gray-600 hover:text-brand-600 transition-colors focus:outline-none" aria-label="Buka Keranjang">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 11-4 0 2 2 0 014 0z" />
                             </svg>
                             <span id="cartBadge" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-500 rounded-full hidden">0</span>
                         </button>
@@ -174,13 +174,6 @@
         </nav>
 
         <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-            <div class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg" id="setupFirebaseCard">
-                <h3 class="font-bold text-yellow-800 mb-2">Penting: Setup Database (Hanya 1x)</h3>
-                <p class="text-sm text-yellow-700 mb-3">Untuk membuat produk tersimpan permanen secara online, Anda wajib memasukkan Konfigurasi Firebase Anda di bawah ini:</p>
-                <textarea id="firebaseConfigInput" rows="5" class="w-full p-3 text-sm font-mono border border-gray-300 rounded-lg bg-white shadow-inner" placeholder='Contoh copy paste:&#10;const firebaseConfig = {&#10;  apiKey: "AIzaSy...",&#10;  authDomain: "...",&#10;...&#10;};'></textarea>
-                <button onclick="saveFirebaseConfig()" class="mt-3 w-full sm:w-auto bg-yellow-600 text-white font-medium px-6 py-2 rounded-lg shadow-sm hover:bg-yellow-700 transition-colors">Simpan Konfigurasi</button>
-            </div>
-
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-2xl font-bold text-gray-800">Manajemen Produk</h2>
                 <button onclick="openProductModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg text-sm font-medium">+ Tambah Produk</button>
@@ -250,12 +243,28 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
     <script>
-        // ==========================================
-        // GANTI DENGAN NOMOR WA ANDA DI BAWAH INI!
-        // ==========================================
-        const SELLER_WHATSAPP_NUMBER = "6281234567890"; 
+        // =========================================================================
+        // 1. GANTI DENGAN NOMOR WA ANDA DI BAWAH INI!
+        // =========================================================================
+        const SELLER_WHATSAPP_NUMBER = "6281317066429"; 
         
-        // Data Dummy (Hanya dipakai jika toko benar-benar kosong)
+        // =========================================================================
+        // 2. TEMPEL KODE FIREBASE ANDA DI SINI! (SANGAT PENTING)
+        // Hapus blok kode 'const firebaseConfig' di bawah, lalu ganti dengan
+        // kode yang Anda Copy dari Google Firebase Anda.
+        // =========================================================================
+        const firebaseConfig = {
+             apiKey: "AIzaSyDMqLdKLeL1MSefjL0c5oAiwSto7dZ_yR0",
+  authDomain: "warawirisnack-ce589.firebaseapp.com",
+  projectId: "warawirisnack-ce589",
+  storageBucket: "warawirisnack-ce589.firebasestorage.app",
+  messagingSenderId: "124010916886",
+  appId: "1:124010916886:web:5645df3a799529bf791937",
+  measurementId: "G-2K3QH3V6H8"
+
+        };
+        // =========================================================================
+
         const defaultProducts = [
             { id: "p1", name: "Basreng Pedas Daun Jeruk", price: 15000, stock: 50, image: "https://placehold.co/400x300/ef4444/ffffff?text=Basreng+Pedas", desc: "Bakso goreng renyah bumbu pedas daun jeruk." },
             { id: "p2", name: "Makaroni Bantet", price: 10000, stock: 20, image: "https://placehold.co/400x300/dc2626/ffffff?text=Makaroni", desc: "Makaroni super renyah dan gurih." }
@@ -268,51 +277,42 @@
 
         const formatRupiah = (number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
 
-        // --- SISTEM FIREBASE DINAMIS ---
-        function getSavedFirebaseConfig() {
-            try { return JSON.parse(localStorage.getItem('myFirebaseConfig')); } catch(e) { return null; }
-        }
-
         function initFirebase() {
-            const config = getSavedFirebaseConfig();
             const indicator = document.getElementById('statusIndicator');
-            const setupCard = document.getElementById('setupFirebaseCard');
 
-            // Deteksi jika berjalan di Vercel/Netlify/Local tanpa firebase
-            const isLocalOrNoConfig = !config || !config.projectId;
-
-            if (!isLocalOrNoConfig) {
-                try {
-                    if (!firebase.apps.length) {
-                        firebase.initializeApp(config);
-                    }
-                    db = firebase.firestore();
-                    isOnlineMode = true;
-                    
-                    firebase.auth().signInAnonymously().then(() => {
-                        listenToProductsOnline();
-                    }).catch(err => {
-                        console.error("Gagal Login Firebase:", err);
-                        fallbackToOffline();
-                    });
-
-                    indicator.textContent = "🟢 Mode Online (Tersimpan)";
-                    indicator.className = "text-xs px-2 py-1 rounded bg-green-600 text-white font-semibold";
-                    setupCard.classList.add('hidden');
-                } catch (e) {
-                    console.error("Firebase Init Error:", e);
-                    fallbackToOffline();
-                }
-            } else {
+            // Pengecekan apakah user sudah mengganti kode Firebasenya
+            if (firebaseConfig.apiKey === "ISI_API_KEY_ANDA" || !firebaseConfig.projectId) {
+                console.log("Menggunakan Mode Offline karena Firebase belum di-setup.");
                 fallbackToOffline();
-                setupCard.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                db = firebase.firestore();
+                isOnlineMode = true;
+                
+                firebase.auth().signInAnonymously().then(() => {
+                    listenToProductsOnline();
+                }).catch(err => {
+                    console.error("Gagal Login Firebase:", err);
+                    fallbackToOffline();
+                });
+
+                indicator.textContent = "🟢 Mode Online Aktif";
+                indicator.className = "text-xs px-2 py-1 rounded bg-green-600 text-white font-semibold";
+            } catch (e) {
+                console.error("Firebase Init Error:", e);
+                fallbackToOffline();
             }
         }
 
         function fallbackToOffline() {
             isOnlineMode = false;
             const indicator = document.getElementById('statusIndicator');
-            indicator.textContent = "🔴 Mode Offline (Belum terhubung Database)";
+            indicator.textContent = "🔴 Mode Offline";
             indicator.className = "text-xs px-2 py-1 rounded bg-red-600 text-white font-semibold";
             
             document.getElementById('loadingProducts').classList.add('hidden');
@@ -335,10 +335,7 @@
                 document.getElementById('productContainer').classList.remove('hidden');
                 
                 if (snapshot.empty) {
-                    // Seed initial data ke Database jika kosong
-                    defaultProducts.forEach(p => {
-                        db.collection("products").add(p);
-                    });
+                    defaultProducts.forEach(p => db.collection("products").add(p));
                 } else {
                     products = [];
                     snapshot.forEach((doc) => {
@@ -353,41 +350,6 @@
             });
         }
 
-        // ============================================================
-        // PERBAIKAN MESIN PENERJEMAH KODE FIREBASE (ANTI-ERROR JSON)
-        // ============================================================
-        window.saveFirebaseConfig = () => {
-            const input = document.getElementById('firebaseConfigInput').value;
-            try {
-                // Cari kurung kurawal buka { dan tutup }
-                const startIdx = input.indexOf('{');
-                const endIdx = input.lastIndexOf('}') + 1;
-                
-                if(startIdx === -1 || endIdx === 0) {
-                    alert("Format tidak dikenali! Pastikan Anda menyalin semuanya dari 'const firebaseConfig...' sampai tanda }; di paling bawah.");
-                    return;
-                }
-
-                // Ekstrak teks yang ada di dalam { ... }
-                const objStr = input.substring(startIdx, endIdx);
-                
-                // Terjemahkan dengan aman menggunakan Function
-                const config = new Function("return " + objStr)();
-                
-                if(config.apiKey && config.projectId) {
-                    localStorage.setItem('myFirebaseConfig', JSON.stringify(config));
-                    showToast("Konfigurasi sukses tersimpan! Memuat ulang sistem...");
-                    setTimeout(() => window.location.reload(), 1500);
-                } else {
-                    alert("Kode tidak lengkap. Pastikan ada tulisan 'apiKey' dan 'projectId' di dalam kodenya.");
-                }
-            } catch(e) {
-                alert("Gagal menyimpan!\nPastikan Anda benar-benar Copy dan Paste TEPAT seperti yang diberikan Google Firebase, jangan diketik ulang.");
-                console.error(e);
-            }
-        };
-
-        // --- RENDER PRODUK KE PELANGGAN ---
         function renderProducts() {
             const container = document.getElementById('productContainer');
             container.innerHTML = '';
@@ -426,7 +388,6 @@
             });
         }
 
-        // --- KERANJANG BELANJA ---
         window.addToCart = function(productId, btnElement) {
             const product = products.find(p => p.id === productId);
             if(!product || product.stock <= 0) return;
@@ -524,7 +485,6 @@
             totalElement.textContent = formatRupiah(totalPrice);
         }
 
-        // Sidebar logic
         document.getElementById('cartBtn').addEventListener('click', () => {
             document.getElementById('cartOverlay').classList.remove('hidden');
             setTimeout(() => document.getElementById('cartSidebar').classList.remove('translate-x-full'), 10);
@@ -537,7 +497,6 @@
         document.getElementById('closeCartBtn').addEventListener('click', closeCart);
         document.getElementById('cartOverlay').addEventListener('click', closeCart);
 
-        // --- CHECKOUT & PENGURANGAN STOK ---
         document.getElementById('checkoutBtn').addEventListener('click', async function() {
             const custName = document.getElementById('custName').value.trim();
             const custAddress = document.getElementById('custAddress').value.trim();
@@ -547,7 +506,6 @@
                 return;
             }
             
-            // 1. Kurangi Stok di Database
             this.textContent = "Memproses...";
             this.disabled = true;
 
@@ -559,7 +517,6 @@
                         db.collection("products").doc(item.id).update({ stock: newStock })
                           .catch(e => console.error("Gagal update stok:", e));
                     } else {
-                        // Offline mode update
                         product.stock = newStock;
                     }
                 }
@@ -571,7 +528,6 @@
                 renderAdminProducts();
             }
 
-            // 2. Format Pesan WA
             let textMsg = `Halo *Wara-Wiri Snake*, saya mau pesan snack:\n\n`;
             let totalPrice = 0;
             cart.forEach((item, index) => {
@@ -580,7 +536,6 @@
             });
             textMsg += `\n*TOTAL BELANJA: ${formatRupiah(totalPrice)}*\n\n*Informasi Pengiriman:*\nNama: ${custName}\nAlamat: ${custAddress}\n\nMohon info total dengan ongkir dan nomor rekening pembayarannya ya. Terima kasih!`;
             
-            // 3. Kosongkan keranjang & Buka WA
             cart = [];
             updateCartUI();
             closeCart();
@@ -591,12 +546,10 @@
             window.open(`https://wa.me/${SELLER_WHATSAPP_NUMBER}?text=${encodeURIComponent(textMsg)}`, '_blank');
         });
 
-        // --- ADMIN AREA ---
         window.showCustomer = () => {
             document.getElementById('loginView').classList.add('hidden');
             document.getElementById('adminView').classList.add('hidden');
             document.getElementById('customerView').classList.remove('hidden');
-            // Jika login tertutup saat keranjang kosong, bersihkan peringatan form
             document.getElementById('formErrorMsg').classList.add('hidden');
         };
 
